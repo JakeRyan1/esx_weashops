@@ -1,5 +1,4 @@
 ESX               = nil
-local ItemsLabels = {}
 
 TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
@@ -9,7 +8,7 @@ function LoadLicenses (source)
   end)
 end
 
-if Config.EnableLicense == true then
+if Config.EnableLicense then
   AddEventHandler('esx:playerLoaded', function (source)
     LoadLicenses(source)
   end)
@@ -37,11 +36,11 @@ ESX.RegisterServerCallback('esx_weashop:requestDBItems', function(source, cb)
 		local shopItems  = {}
 		for i=1, #result, 1 do
 
-			if shopItems[result[i].name] == nil then
-				shopItems[result[i].name] = {}
+			if shopItems[result[i].zone] == nil then
+				shopItems[result[i].zone] = {}
 			end
 
-			table.insert(shopItems[result[i].name], {
+			table.insert(shopItems[result[i].zone], {
 				name  = result[i].item,
 				price = result[i].price,
 				label = ESX.GetWeaponLabel(result[i].item)
@@ -56,12 +55,13 @@ ESX.RegisterServerCallback('esx_weashop:requestDBItems', function(source, cb)
 end)
 
 RegisterServerEvent('esx_weashop:buyItem')
-AddEventHandler('esx_weashop:buyItem', function(itemName, price, zone)
+AddEventHandler('esx_weashop:buyItem', function(itemName, zone)
 	local _source = source
-	local xPlayer  = ESX.GetPlayerFromId(source)
+	local xPlayer = ESX.GetPlayerFromId(_source)
 	local account = xPlayer.getAccount('black_money')
-	
-	if zone=="BlackWeashop" then
+	local price   = GetPrice(itemName, zone)
+
+	if zone == 'BlackWeashop' then
 		if account.money >= price then
 			xPlayer.removeAccountMoney('black_money', price)
 			xPlayer.addWeapon(itemName, 42)
@@ -70,7 +70,7 @@ AddEventHandler('esx_weashop:buyItem', function(itemName, price, zone)
 			TriggerClientEvent('esx:showNotification', _source, _U('not_enough_black'))
 		end
 	else
-		if xPlayer.get('money') >= price then
+		if xPlayer.getMoney() >= price then
 			xPlayer.removeMoney(price)
 			xPlayer.addWeapon(itemName, 42)
 			TriggerClientEvent('esx:showNotification', _source, _U('buy') .. ESX.GetWeaponLabel(itemName))
@@ -79,3 +79,13 @@ AddEventHandler('esx_weashop:buyItem', function(itemName, price, zone)
 		end
 	end
 end)
+
+function GetPrice(itemName, zone)
+	local result = MySQL.Sync.fetchAll('SELECT * FROM weashops WHERE zone = @zone AND item = @item',
+	{
+		['@zone'] = zone,
+		['@item'] = itemName
+	})
+	
+	return result[1].price
+end

@@ -11,6 +11,14 @@ Citizen.CreateThread(function()
 		TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 		Citizen.Wait(0)
 	end
+
+	Citizen.Wait(5000)
+
+	ESX.TriggerServerCallback('esx_weashop:requestDBItems', function(ShopItems)
+		for k,v in pairs(ShopItems) do
+			Config.Zones[k].Items = v
+		end
+	end)
 end)
 
 RegisterNetEvent('esx_weashop:loadLicenses')
@@ -20,22 +28,15 @@ AddEventHandler('esx_weashop:loadLicenses', function (licenses)
 	end
 end)
 
-AddEventHandler('onClientMapStart', function()
-	ESX.TriggerServerCallback('esx_weashop:requestDBItems', function(ShopItems)
-		for k,v in pairs(ShopItems) do
-			Config.Zones[k].Items = v
-		end
-	end)
-end)
-
 function OpenBuyLicenseMenu(zone)
 	ESX.UI.Menu.CloseAll()
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'shop_license',
 	{
-		title = _U('buy_license'),
+		title    = _U('buy_license'),
+		align    = 'top-left',
 		elements = {
-			{ label = _U('yes') .. ' ($' .. Config.LicensePrice .. ')', value = 'yes' },
+			{ label = _U('yes') .. ' - <span style="color:green;">$' .. Config.LicensePrice .. '</span>', value = 'yes' },
 			{ label = _U('no'), value = 'no' },
 		}
 	}, function (data, menu)
@@ -56,20 +57,20 @@ function OpenShopMenu(zone)
 		local item = Config.Zones[zone].Items[i]
 
 		table.insert(elements, {
-			label     = item.label .. ' - <span style="color:green;">$' .. item.price .. ' </span>',
+			label     = item.label .. ' - <span style="color:green;">$' .. item.price .. '</span>',
 			realLabel = item.label,
-			value     = item.name,
-			price     = item.price
+			value     = item.name
 		})
 	end
 	ESX.UI.Menu.CloseAll()
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'shop',
 	{
-		title  = _U('shop'),
+		title    = _U('shop'),
+		align    = 'top-left',
 		elements = elements
 	}, function(data, menu)
-		TriggerServerEvent('esx_weashop:buyItem', data.current.value, data.current.price, zone)
+		TriggerServerEvent('esx_weashop:buyItem', data.current.value, zone)
 	end, function(data, menu)
 		menu.close()
 		CurrentAction     = 'shop_menu'
@@ -93,13 +94,13 @@ end)
 -- Create Blips
 Citizen.CreateThread(function()
 	for k,v in pairs(Config.Zones) do
-		if v.legal==0 then
+		if v.legal then
 			for i = 1, #v.Pos, 1 do
 				local blip = AddBlipForCoord(v.Pos[i].x, v.Pos[i].y, v.Pos[i].z)
-				SetBlipSprite (blip, 154)
+				SetBlipSprite (blip, 110)
 				SetBlipDisplay(blip, 4)
 				SetBlipScale  (blip, 1.0)
-				SetBlipColour (blip, 2)
+				SetBlipColour (blip, 81)
 				SetBlipAsShortRange(blip, true)
 				BeginTextCommandSetBlipName("STRING")
 				AddTextComponentString(_U('map_blip'))
@@ -168,7 +169,7 @@ Citizen.CreateThread(function()
 
 				if CurrentAction == 'shop_menu' then
 					if Config.EnableLicense == true then
-						if Licenses['weapon'] ~= nil or Config.Zones[CurrentActionData.zone].legal == 1 then
+						if Licenses['weapon'] ~= nil or Config.Zones[CurrentActionData.zone].legal == false then
 							OpenShopMenu(CurrentActionData.zone)
 						else
 							OpenBuyLicenseMenu()
